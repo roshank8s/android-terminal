@@ -9,6 +9,7 @@ import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.zip.GZIPInputStream
+import org.tukaani.xz.XZInputStream
 
 /**
  * Handles downloading and installing Linux distribution rootfs archives
@@ -301,10 +302,15 @@ class BootstrapInstaller(private val context: Context) {
                 }
             }
 
-            // If system tar fails, try Java-based extraction for .tar.gz
+            // If system tar fails, try Java-based extraction
             if (archiveName.endsWith(".tar.gz") || archiveName.endsWith(".tgz")) {
                 listener.onStatusMessage("Using Java-based extraction...")
                 return extractTarGzJava(archive, destDir, listener)
+            }
+
+            if (archiveName.endsWith(".tar.xz") || archiveName.endsWith(".txz")) {
+                listener.onStatusMessage("Using Java-based XZ extraction...")
+                return extractTarXzJava(archive, destDir, listener)
             }
 
             return false
@@ -379,6 +385,75 @@ class BootstrapInstaller(private val context: Context) {
             return count > 0
         } catch (e: Exception) {
             Log.e(TAG, "Java extraction failed", e)
+            return false
+        }
+    }
+
+    /**
+     * Java-based tar.xz extraction as fallback.
+     */
+    private fun extractTarXzJava(archive: File, destDir: File, listener: ProgressListener): Boolean {
+        try {
+            val fis = FileInputStream(archive)
+            val xis = XZInputStream(fis)
+            val tis = TarInputStream(xis)
+
+            var entry = tis.nextEntry
+            var count = 0
+
+            while (entry != null) {
+                val outFile = File(destDir, entry.name)
+                count++
+
+                if (count % 100 == 0) {
+                    listener.onStatusMessage("Extracting: $count files...")
+                }
+
+                // Security: prevent path traversal
+                if (!outFile.canonicalPath.startsWith(destDir.canonicalPath)) {
+                    entry = tis.nextEntry
+                    continue
+                }
+
+                if (entry.isDirectory) {
+                    outFile.mkdirs()
+                } else {
+                    outFile.parentFile?.mkdirs()
+                    val fos = FileOutputStream(outFile)
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    var bytesRead: Int
+                    while (tis.read(buffer).also { bytesRead = it } != -1) {
+                        fos.write(buffer, 0, bytesRead)
+                    }
+                    fos.close()
+
+                    // Set executable if in bin directory
+                    if (entry.name.contains("/bin/") ||
+                        entry.name.contains("/sbin/") ||
+                        entry.name.endsWith(".sh")) {
+                        outFile.setExecutable(true, false)
+                    }
+                }
+
+                // Handle symlinks if possible
+                if (entry.isSymlink && entry.linkName != null) {
+                    try {
+                        val target = entry.linkName!!
+                        outFile.delete()
+                        Runtime.getRuntime().exec(arrayOf("ln", "-s", target, outFile.absolutePath)).waitFor()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to create symlink: ${entry.name} -> ${entry.linkName}", e)
+                    }
+                }
+
+                entry = tis.nextEntry
+            }
+
+            tis.close()
+            listener.onStatusMessage("Extracted $count files")
+            return count > 0
+        } catch (e: Exception) {
+            Log.e(TAG, "Java XZ extraction failed", e)
             return false
         }
     }

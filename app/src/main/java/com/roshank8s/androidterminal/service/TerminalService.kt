@@ -138,7 +138,7 @@ class TerminalService : Service(), TerminalSession.SessionClient {
         rows: Int = 24,
         columns: Int = 80
     ): TerminalSession {
-        val env = shellEnvironment.buildEnvironment()
+        val env = shellEnvironment.buildPRootEnvironment()
 
         val session = TerminalSession(
             shellPath = distroCommand[0],
