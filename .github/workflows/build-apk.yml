@@ -1,0 +1,172 @@
+name: Build APK
+
+# Triggers: every push and pull request
+on:
+  push:
+    branches: [ master, main, 'feature/**', 'claude/**' ]
+  pull_request:
+    branches: [ master, main ]
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  build-debug:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: |
+          yes | sdkmanager --install "ndk;26.1.10909125" --channel=0
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK with version info
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+          if [ -n "$APK_PATH" ]; then
+            COMMIT_SHORT=$(git rev-parse --short HEAD)
+            DATE=$(date +%Y%m%d)
+            NEW_NAME="AndroidTerminal-debug-${DATE}-${COMMIT_SHORT}.apk"
+            cp "$APK_PATH" "app/build/outputs/apk/debug/${NEW_NAME}"
+            echo "APK_NAME=${NEW_NAME}" >> $GITHUB_ENV
+            echo "APK_PATH=app/build/outputs/apk/debug/${NEW_NAME}" >> $GITHUB_ENV
+          fi
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-terminal-debug-apk
+          path: app/build/outputs/apk/debug/AndroidTerminal-*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload build reports (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: app/build/reports/
+          retention-days: 7
+
+      - name: Post APK info as comment (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Find the APK file
+            const apkDir = 'app/build/outputs/apk/debug';
+            const files = fs.readdirSync(apkDir).filter(f => f.startsWith('AndroidTerminal-'));
+
+            if (files.length > 0) {
+              const apkFile = files[0];
+              const stats = fs.statSync(path.join(apkDir, apkFile));
+              const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+
+              const body = `## APK Build Successful\n\n` +
+                `| Detail | Value |\n` +
+                `|--------|-------|\n` +
+                `| **File** | \`${apkFile}\` |\n` +
+                `| **Size** | ${sizeMB} MB |\n` +
+                `| **Commit** | \`${context.sha.substring(0, 7)}\` |\n\n` +
+                `Download the APK from the **Artifacts** section of this workflow run.`;
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
+
+  build-release:
+    name: Build Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: |
+          yes | sdkmanager --install "ndk;26.1.10909125" --channel=0
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # For unsigned release APK (no keystore needed)
+      - name: Build Release APK (unsigned)
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        env:
+          # Skip signing for CI builds — release workflow handles signing
+          ORG_GRADLE_PROJECT_RELEASE_STORE_FILE: ""
+
+      - name: Rename Release APK
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          if [ -n "$APK_PATH" ]; then
+            COMMIT_SHORT=$(git rev-parse --short HEAD)
+            DATE=$(date +%Y%m%d)
+            NEW_NAME="AndroidTerminal-release-unsigned-${DATE}-${COMMIT_SHORT}.apk"
+            cp "$APK_PATH" "app/build/outputs/apk/release/${NEW_NAME}"
+          fi
+
+      - name: Upload Release APK (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-terminal-release-apk
+          path: app/build/outputs/apk/release/AndroidTerminal-*.apk
+          retention-days: 30
+          if-no-files-found: error

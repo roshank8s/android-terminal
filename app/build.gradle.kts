@@ -27,6 +27,27 @@ android {
         }
     }
 
+    // Signing config for release builds (uses env vars from CI or local properties)
+    signingConfigs {
+        create("release") {
+            val storeFilePath = System.getenv("RELEASE_STORE_FILE")
+                ?: project.findProperty("RELEASE_STORE_FILE") as? String
+            val storePass = System.getenv("RELEASE_STORE_PASSWORD")
+                ?: project.findProperty("RELEASE_STORE_PASSWORD") as? String
+            val keyAliasName = System.getenv("RELEASE_KEY_ALIAS")
+                ?: project.findProperty("RELEASE_KEY_ALIAS") as? String
+            val keyPass = System.getenv("RELEASE_KEY_PASSWORD")
+                ?: project.findProperty("RELEASE_KEY_PASSWORD") as? String
+
+            if (storeFilePath != null && storePass != null && keyAliasName != null && keyPass != null) {
+                storeFile = file(storeFilePath)
+                storePassword = storePass
+                keyAlias = keyAliasName
+                keyPassword = keyPass
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -35,6 +56,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
+            // Use release signing config if keystore is configured
+            val releaseConfig = signingConfigs.findByName("release")
+            if (releaseConfig?.storeFile != null) {
+                signingConfig = releaseConfig
+            }
         }
         debug {
             isMinifyEnabled = false
