@@ -31,13 +31,23 @@ class BootstrapInstaller(private val context: Context) {
 
         // PRoot static binary URLs per architecture
         fun getPRootUrl(): String {
-            val arch = DistroManager.getPRootArch()
-            return "https://github.com/proot-me/proot/releases/download/v5.4.0/proot-v5.4.0-$arch-static"
+            // skirsten's Android-specific builds (from Termux proot package)
+            // Arch names: aarch64, armv7, x86_64, x86
+            val arch = when (DistroManager.getPRootArch()) {
+                "arm" -> "armv7"
+                else -> DistroManager.getPRootArch()
+            }
+            return "https://skirsten.github.io/proot-portable-android-binaries/$arch/proot"
         }
 
         fun getPRootFallbackUrl(): String {
-            val arch = DistroManager.getPRootArch()
-            return "https://raw.githubusercontent.com/AniMeIIIkA/proot-static-builds/master/proot-$arch-static"
+            // Official proot-me static builds
+            // Arch names: arm64, arm, x86_64, x86
+            val arch = when (DistroManager.getPRootArch()) {
+                "aarch64" -> "arm64"
+                else -> DistroManager.getPRootArch()
+            }
+            return "https://raw.githubusercontent.com/proot-me/proot-static-build/master/static/proot-$arch"
         }
     }
 
@@ -110,8 +120,14 @@ class BootstrapInstaller(private val context: Context) {
         listener.onStatusMessage("Downloading ${distro.displayName} rootfs...")
         listener.onProgress("Downloading rootfs", 0, 100)
 
-        val tempFile = File(context.cacheDir, "${distro.id}-rootfs.tar.gz")
-        var success = downloadFile(distro.getRootfsUrl(), tempFile, listener, "Downloading rootfs")
+        val rootfsUrl = distro.getRootfsUrl()
+        val extension = when {
+            rootfsUrl.endsWith(".tar.xz") -> ".tar.xz"
+            rootfsUrl.endsWith(".tar.bz2") -> ".tar.bz2"
+            else -> ".tar.gz"
+        }
+        val tempFile = File(context.cacheDir, "${distro.id}-rootfs$extension")
+        var success = downloadFile(rootfsUrl, tempFile, listener, "Downloading rootfs")
 
         if (!success) {
             listener.onStatusMessage("Primary download failed, trying Debian fallback...")

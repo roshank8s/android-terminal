@@ -75,7 +75,13 @@ class DistroManager(private val context: Context) {
         fun getRootfsUrl(): String {
             val arch = getLinuxArch()
             return when (this) {
-                KALI_LINUX -> "https://kali.download/nethunter-images/current/rootfs/kalifs-$arch-minimal.tar.xz"
+                KALI_LINUX -> {
+                    val kaliArch = when (arch) {
+                        "aarch64" -> "arm64"
+                        else -> arch
+                    }
+                    "https://kali.download/nethunter-images/current/rootfs/kali-nethunter-rootfs-minimal-$kaliArch.tar.xz"
+                }
                 UBUNTU -> {
                     val ubuntuArch = when (arch) {
                         "aarch64" -> "arm64"
