@@ -31,10 +31,8 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android NDK
-        run: |
-          yes | sdkmanager --install "ndk;26.1.10909125" --channel=0
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+      - name: Install NDK and CMake
+        run: sdkmanager --install "ndk;25.2.9519653" "cmake;3.22.1"
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
