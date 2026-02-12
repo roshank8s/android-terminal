@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Debug APK
 
 # Triggers: every push and pull request
 on:
@@ -99,49 +99,3 @@ jobs:
               });
             }
 
-  build-release:
-    name: Build Release APK
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.5'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install NDK and CMake
-        run: sdkmanager --install "ndk;25.2.9519653" "cmake;3.22.1"
-
-      # For unsigned release APK (no keystore needed)
-      - name: Build Release APK (unsigned)
-        run: gradle assembleRelease --no-daemon --stacktrace
-
-      - name: Rename Release APK
-        run: |
-          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
-          if [ -n "$APK_PATH" ]; then
-            COMMIT_SHORT=$(git rev-parse --short HEAD)
-            DATE=$(date +%Y%m%d)
-            NEW_NAME="AndroidTerminal-release-unsigned-${DATE}-${COMMIT_SHORT}.apk"
-            cp "$APK_PATH" "app/build/outputs/apk/release/${NEW_NAME}"
-          fi
-
-      - name: Upload Release APK (unsigned)
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-terminal-release-apk
-          path: app/build/outputs/apk/release/AndroidTerminal-*.apk
-          retention-days: 30
-          if-no-files-found: error
