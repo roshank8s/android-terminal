@@ -372,7 +372,8 @@ class MainActivity : AppCompatActivity(),
         scriptFile.writeText(setupScript)
         scriptFile.setExecutable(true)
 
-        val cmd = distroManager.buildPRootCommand(distro, "/bin/bash /tmp/setup.sh")
+        val shell = if (distro == DistroManager.Distro.ALPINE) "/bin/sh" else "/bin/bash"
+        val cmd = distroManager.buildPRootCommand(distro, "$shell /tmp/setup.sh")
         val session = service.createDistroSession(cmd)
         switchToSession(session)
     }

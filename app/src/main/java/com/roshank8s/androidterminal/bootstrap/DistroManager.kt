@@ -84,24 +84,23 @@ class DistroManager(private val context: Context) {
                 }
                 UBUNTU -> {
                     val ubuntuArch = when (arch) {
-                        "aarch64" -> "arm64"
-                        "armhf" -> "armhf"
-                        "amd64" -> "amd64"
-                        "i386" -> "i386"
-                        else -> "arm64"
+                        "aarch64" -> "aarch64"
+                        "armhf" -> "arm"
+                        "amd64" -> "x86_64"
+                        "i386" -> "i686"
+                        else -> "aarch64"
                     }
-                    "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04-base-$ubuntuArch.tar.gz"
+                    "https://github.com/termux/proot-distro/releases/download/v4.29.0/ubuntu-plucky-$ubuntuArch-pd-v4.29.0.tar.xz"
                 }
                 DEBIAN -> {
-                    // Using debian rootfs from official sources
                     val debianArch = when (arch) {
-                        "aarch64" -> "arm64"
-                        "armhf" -> "armhf"
-                        "amd64" -> "amd64"
-                        "i386" -> "i386"
-                        else -> "arm64"
+                        "aarch64" -> "aarch64"
+                        "armhf" -> "arm"
+                        "amd64" -> "x86_64"
+                        "i386" -> "i686"
+                        else -> "aarch64"
                     }
-                    "https://github.com/termux/proot-distro/releases/download/v4.7.0/debian-$debianArch-pd-v4.7.0.tar.xz"
+                    "https://github.com/termux/proot-distro/releases/download/v4.29.0/debian-trixie-$debianArch-pd-v4.29.0.tar.xz"
                 }
                 ALPINE -> {
                     val alpineArch = when (arch) {
@@ -118,15 +117,15 @@ class DistroManager(private val context: Context) {
 
         fun getFallbackUrl(): String {
             val arch = getLinuxArch()
-            // Fallback to Debian from a different source
+            // Fallback to Debian bookworm from proot-distro v4.7.0
             val debianArch = when (arch) {
-                "aarch64" -> "arm64"
-                "armhf" -> "armhf"
-                "amd64" -> "amd64"
-                "i386" -> "i386"
-                else -> "arm64"
+                "aarch64" -> "aarch64"
+                "armhf" -> "arm"
+                "amd64" -> "x86_64"
+                "i386" -> "i686"
+                else -> "aarch64"
             }
-            return "https://github.com/termux/proot-distro/releases/download/v4.7.0/debian-$debianArch-pd-v4.7.0.tar.xz"
+            return "https://github.com/termux/proot-distro/releases/download/v4.7.0/debian-bookworm-$debianArch-pd-v4.7.0.tar.xz"
         }
     }
 
@@ -187,12 +186,16 @@ class DistroManager(private val context: Context) {
      * - Bind mount /dev, /proc, /sys from the host
      * - Translate filesystem paths
      */
-    fun buildPRootCommand(distro: Distro, command: String = "/bin/bash --login"): List<String> {
+    fun buildPRootCommand(distro: Distro, command: String? = null): List<String> {
         val rootfs = getRootfsDir(distro)
         val prootBinary = getPRootBinary()
         val homeDir = File(rootfs, "root")
 
         if (!homeDir.exists()) homeDir.mkdirs()
+
+        // Alpine uses /bin/sh (ash), others use /bin/bash
+        val defaultShell = if (distro == Distro.ALPINE) "/bin/sh" else "/bin/bash"
+        val actualCommand = command ?: "$defaultShell --login"
 
         val cmd = mutableListOf<String>()
 
@@ -237,11 +240,11 @@ class DistroManager(private val context: Context) {
             "TERM=xterm-256color",
             "LANG=C.UTF-8",
             "TMPDIR=/tmp",
-            "SHELL=/bin/bash",
+            "SHELL=$defaultShell",
             "USER=root",
             "LOGNAME=root"
         ))
-        cmd.addAll(command.split(" "))
+        cmd.addAll(actualCommand.split(" "))
 
         return cmd
     }
@@ -256,8 +259,9 @@ class DistroManager(private val context: Context) {
      * Build the setup script that configures a fresh distro installation.
      */
     fun getSetupScript(distro: Distro): String {
+        val shell = if (distro == Distro.ALPINE) "/bin/sh" else "/bin/bash"
         return buildString {
-            appendLine("#!/bin/bash")
+            appendLine("#!$shell")
             appendLine("set -e")
             appendLine()
             appendLine("# Fix DNS resolution")
