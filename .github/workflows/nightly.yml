@@ -22,7 +22,11 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -32,21 +36,8 @@ jobs:
           yes | sdkmanager --install "ndk;26.1.10909125" --channel=0
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: Prepare nightly APK
         id: prepare
