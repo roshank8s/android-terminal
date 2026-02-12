@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group android:id="@+id/group_sessions">
+        <item
+            android:id="@+id/nav_new_session"
+            android:icon="@drawable/ic_add"
+            android:title="New Session" />
+    </group>
+
+    <group android:id="@+id/group_tools">
+        <item
+            android:id="@+id/nav_file_manager"
+            android:icon="@drawable/ic_folder"
+            android:title="File Manager" />
+
+        <item
+            android:id="@+id/nav_snippets"
+            android:icon="@drawable/ic_snippet"
+            android:title="Command Snippets" />
+    </group>
+
+    <group android:id="@+id/group_settings">
+        <item
+            android:id="@+id/nav_settings"
+            android:icon="@drawable/ic_settings"
+            android:title="Settings" />
+
+        <item
+            android:id="@+id/nav_help"
+            android:icon="@drawable/ic_help"
+            android:title="Help" />
+    </group>
+
+</menu>

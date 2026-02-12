@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Terminal icon centered with adaptive icon insets -->
+    <group
+        android:translateX="26"
+        android:translateY="26">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M48,2H8C5.8,2 4,3.8 4,6v44c0,2.2 1.8,4 4,4h40c2.2,0 4,-1.8 4,-4V6C52,3.8 50.2,2 48,2zM48,50H8V14h40V50z" />
+        <path
+            android:fillColor="#69F0AE"
+            android:pathData="M14,40l8,-8 -8,-8 3,-3 11,11 -11,11z" />
+        <path
+            android:fillColor="#69F0AE"
+            android:pathData="M28,42h14v-4H28z" />
+    </group>
+
+</vector>

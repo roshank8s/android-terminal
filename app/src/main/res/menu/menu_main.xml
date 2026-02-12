@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_new_session"
+        android:title="New Session"
+        android:icon="@drawable/ic_add"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_toggle_keyboard"
+        android:title="Toggle Keyboard"
+        android:icon="@drawable/ic_keyboard"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_copy"
+        android:title="Copy"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_paste"
+        android:title="Paste"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_close_session"
+        android:title="Close Session"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_reset_terminal"
+        android:title="Reset Terminal"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_toggle_extra_keys"
+        android:title="Toggle Extra Keys"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_wake_lock"
+        android:title="Acquire Wake Lock"
+        app:showAsAction="never" />
+
+</menu>

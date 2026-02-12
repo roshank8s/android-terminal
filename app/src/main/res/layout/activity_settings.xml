@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background_dark">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:titleTextColor="@android:color/white" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Appearance Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Appearance"
+                android:textColor="@color/accent"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Font Size -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Font Size"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="16dp">
+
+                <SeekBar
+                    android:id="@+id/seekbar_font_size"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:min="0"
+                    android:max="28"
+                    android:progress="6" />
+
+                <TextView
+                    android:id="@+id/text_font_size_value"
+                    android:layout_width="48dp"
+                    android:layout_height="wrap_content"
+                    android:text="14 sp"
+                    android:textColor="@color/text_secondary"
+                    android:gravity="end" />
+
+            </LinearLayout>
+
+            <!-- Color Scheme -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Color Scheme"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp" />
+
+            <Spinner
+                android:id="@+id/spinner_color_scheme"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="16dp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/divider"
+                android:layout_marginVertical="8dp" />
+
+            <!-- Behavior Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Behavior"
+                android:textColor="@color/accent"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <Switch
+                android:id="@+id/switch_keep_screen_on"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Keep Screen On"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="12dp" />
+
+            <Switch
+                android:id="@+id/switch_extra_keys"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Show Extra Keys Bar"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="12dp" />
+
+            <Switch
+                android:id="@+id/switch_vibrate_on_key"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Vibrate on Key Press"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="12dp" />
+
+            <Switch
+                android:id="@+id/switch_bell_vibrate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Vibrate on Bell"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="12dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>
