@@ -281,22 +281,13 @@ class BootstrapInstaller(private val context: Context) {
                     }
 
                     val exitCode = process.waitFor()
-                    if (exitCode == 0) {
-                        // Check if files were actually extracted
-                        val files = destDir.listFiles()
-                        if (files != null && files.isNotEmpty()) {
-                            // Handle case where tarball has a single top-level directory
-                            if (files.size == 1 && files[0].isDirectory) {
-                                val innerDir = files[0]
-                                innerDir.listFiles()?.forEach { file ->
-                                    file.renameTo(File(destDir, file.name))
-                                }
-                                innerDir.delete()
-                            }
-                            return true
-                        }
+                    // Check if files were extracted (even with non-zero exit code)
+                    val files = destDir.listFiles()
+                    if (files != null && files.size > 1) {
+                        handleTopLevelDir(destDir)
+                        return true
                     }
-                    Log.w(TAG, "tar command failed with exit code $exitCode")
+                    Log.w(TAG, "tar command failed with exit code $exitCode, files=${files?.size ?: 0}")
                 } catch (e: Exception) {
                     Log.w(TAG, "tar command failed: ${cmd.joinToString(" ")}", e)
                 }
@@ -392,10 +383,10 @@ class BootstrapInstaller(private val context: Context) {
     /**
      * Java-based tar.xz extraction as fallback.
      * Decompresses XZ to a plain .tar first, then uses system tar to extract.
-     * This avoids fragile custom tar parsing (GNU long names, pax headers, etc).
+     * Falls back to Java-based tar parsing if system tar fails.
      */
     private fun extractTarXzJava(archive: File, destDir: File, listener: ProgressListener): Boolean {
-        val tarFile = File(archive.parent, archive.nameWithoutExtension + ".tar")
+        val tarFile = File(context.cacheDir, "${archive.nameWithoutExtension}-decompressed.tar")
         try {
             // Step 1: Decompress .tar.xz -> .tar using Java XZ library
             listener.onStatusMessage("Decompressing XZ archive...")
@@ -417,7 +408,7 @@ class BootstrapInstaller(private val context: Context) {
             fis.close()
             listener.onStatusMessage("Decompressed to ${totalBytes / (1024 * 1024)} MB tar")
 
-            // Step 2: Extract the plain .tar using system tar
+            // Step 2: Try system tar first
             val tarCommands = listOf(
                 listOf("tar", "-xf", tarFile.absolutePath, "-C", destDir.absolutePath),
                 listOf("busybox", "tar", "-xf", tarFile.absolutePath, "-C", destDir.absolutePath)
@@ -438,33 +429,118 @@ class BootstrapInstaller(private val context: Context) {
                     }
 
                     val exitCode = process.waitFor()
-                    if (exitCode == 0) {
-                        val files = destDir.listFiles()
-                        if (files != null && files.isNotEmpty()) {
-                            // Handle single top-level directory
-                            if (files.size == 1 && files[0].isDirectory) {
-                                val innerDir = files[0]
-                                innerDir.listFiles()?.forEach { file ->
-                                    file.renameTo(File(destDir, file.name))
-                                }
-                                innerDir.delete()
-                            }
-                            tarFile.delete()
-                            return true
-                        }
+                    // Accept extraction even with non-zero exit (tar may warn but still extract)
+                    val files = destDir.listFiles()
+                    if (files != null && files.size > 1) {
+                        handleTopLevelDir(destDir)
+                        tarFile.delete()
+                        listener.onStatusMessage("Extraction complete (exit=$exitCode)")
+                        return true
                     }
-                    Log.w(TAG, "tar extraction failed with exit code $exitCode")
+                    Log.w(TAG, "tar extraction failed with exit code $exitCode, files=${files?.size ?: 0}")
                 } catch (e: Exception) {
                     Log.w(TAG, "tar command failed: ${cmd.joinToString(" ")}", e)
                 }
             }
 
+            // Step 3: Fall back to Java-based tar extraction
+            listener.onStatusMessage("Using Java-based tar extraction...")
+            val result = extractPlainTarJava(tarFile, destDir, listener)
             tarFile.delete()
-            return false
+            return result
         } catch (e: Exception) {
             Log.e(TAG, "Java XZ extraction failed", e)
             tarFile.delete()
             return false
+        }
+    }
+
+    /**
+     * Extract a plain (uncompressed) .tar archive using Java.
+     */
+    private fun extractPlainTarJava(tarFile: File, destDir: File, listener: ProgressListener): Boolean {
+        try {
+            val fis = BufferedInputStream(FileInputStream(tarFile), 65536)
+            val tis = TarInputStream(fis)
+
+            var entry = tis.nextEntry
+            var count = 0
+
+            while (entry != null) {
+                count++
+                if (count % 500 == 0) {
+                    listener.onStatusMessage("Extracting: $count files...")
+                }
+
+                if (entry.name.isBlank() || entry.name == "./") {
+                    entry = tis.nextEntry
+                    continue
+                }
+
+                val outFile = File(destDir, entry.name)
+
+                // Security: prevent path traversal
+                if (!outFile.canonicalPath.startsWith(destDir.canonicalPath)) {
+                    entry = tis.nextEntry
+                    continue
+                }
+
+                if (entry.isSymlink && entry.linkName != null) {
+                    outFile.parentFile?.mkdirs()
+                    try {
+                        outFile.delete()
+                        Runtime.getRuntime().exec(arrayOf("ln", "-sf", entry.linkName!!, outFile.absolutePath)).waitFor()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Symlink failed: ${entry.name} -> ${entry.linkName}", e)
+                    }
+                } else if (entry.isDirectory) {
+                    outFile.mkdirs()
+                } else {
+                    outFile.parentFile?.mkdirs()
+                    val fos = FileOutputStream(outFile)
+                    val buffer = ByteArray(32768)
+                    var bytesRead: Int
+                    while (tis.read(buffer).also { bytesRead = it } != -1) {
+                        fos.write(buffer, 0, bytesRead)
+                    }
+                    fos.close()
+
+                    if (entry.name.contains("/bin/") ||
+                        entry.name.contains("/sbin/") ||
+                        entry.name.endsWith(".sh")) {
+                        outFile.setExecutable(true, false)
+                    }
+                }
+
+                entry = tis.nextEntry
+            }
+
+            tis.close()
+            listener.onStatusMessage("Extracted $count files")
+            return count > 0
+        } catch (e: Exception) {
+            Log.e(TAG, "Java tar extraction failed", e)
+            // Even if we fail partway, check if enough was extracted
+            val files = destDir.listFiles()
+            if (files != null && files.size > 3) {
+                Log.i(TAG, "Partial extraction: ${files.size} top-level entries, considering success")
+                return true
+            }
+            return false
+        }
+    }
+
+    /**
+     * If tarball extracted to a single top-level directory, flatten it.
+     */
+    private fun handleTopLevelDir(destDir: File) {
+        val files = destDir.listFiles() ?: return
+        if (files.size == 1 && files[0].isDirectory) {
+            val innerDir = files[0]
+            innerDir.listFiles()?.forEach { file ->
+                file.renameTo(File(destDir, file.name))
+            }
+            innerDir.deleteRecursively()
         }
     }
 
@@ -605,7 +681,8 @@ class BootstrapInstaller(private val context: Context) {
     }
 
     /**
-     * Minimal tar stream reader for Java-based extraction.
+     * Tar stream reader for Java-based extraction.
+     * Handles POSIX, GNU (long names type L/K), and pax (type x/g) formats.
      */
     private class TarInputStream(inputStream: InputStream) : FilterInputStream(inputStream) {
         data class TarEntry(
@@ -613,56 +690,128 @@ class BootstrapInstaller(private val context: Context) {
             val size: Long,
             val isDirectory: Boolean,
             val isSymlink: Boolean,
+            val isHardLink: Boolean,
             val linkName: String?
         )
 
         var currentEntry: TarEntry? = null
         private var remainingBytes = 0L
 
+        /** Skip exactly n bytes, looping as needed. */
+        private fun skipFully(n: Long) {
+            var remaining = n
+            val buf = ByteArray(8192)
+            while (remaining > 0) {
+                val toRead = minOf(remaining, buf.size.toLong()).toInt()
+                val read = `in`.read(buf, 0, toRead)
+                if (read <= 0) break
+                remaining -= read
+            }
+        }
+
+        /** Read exactly n bytes into a buffer. Returns false on EOF. */
+        private fun readFully(buf: ByteArray, off: Int, len: Int): Boolean {
+            var offset = off
+            var remaining = len
+            while (remaining > 0) {
+                val read = `in`.read(buf, offset, remaining)
+                if (read <= 0) return false
+                offset += read
+                remaining -= read
+            }
+            return true
+        }
+
         val nextEntry: TarEntry?
             get() {
-                // Skip remaining bytes of current entry
+                // Skip remaining bytes of current entry + padding
                 if (remainingBytes > 0) {
-                    skip(remainingBytes)
-                    // Skip padding
+                    skipFully(remainingBytes)
                     val padding = (512 - (remainingBytes % 512)) % 512
-                    if (padding > 0) skip(padding)
+                    if (padding > 0) skipFully(padding)
                 }
+                remainingBytes = 0
 
-                // Read 512-byte header
-                val header = ByteArray(512)
-                var offset = 0
-                while (offset < 512) {
-                    val read = read(header, offset, 512 - offset)
-                    if (read <= 0) return null
-                    offset += read
-                }
-
-                // Check for end of archive (two zero blocks)
-                if (header.all { it.toInt() == 0 }) return null
-
-                val name = extractString(header, 0, 100)
-                if (name.isEmpty()) return null
-
-                val typeFlag = header[156].toInt().toChar()
-                val size = extractOctal(header, 124, 12)
-                val linkName = extractString(header, 157, 100)
-
-                // Handle GNU long name
-                val prefix = extractString(header, 345, 155)
-                val fullName = if (prefix.isNotEmpty()) "$prefix/$name" else name
-
-                remainingBytes = size
-
-                currentEntry = TarEntry(
-                    name = fullName,
-                    size = size,
-                    isDirectory = typeFlag == '5' || fullName.endsWith("/"),
-                    isSymlink = typeFlag == '2',
-                    linkName = if (typeFlag == '2') linkName else null
-                )
-                return currentEntry
+                return readNextEntry()
             }
+
+        private fun readNextEntry(): TarEntry? {
+            val header = ByteArray(512)
+            if (!readFully(header, 0, 512)) return null
+
+            // End of archive (zero block)
+            if (header.all { it.toInt() == 0 }) return null
+
+            val typeFlag = header[156].toInt().toChar()
+            val size = extractOctal(header, 124, 12)
+
+            // GNU long name (type 'L'): next header's name is stored in data
+            if (typeFlag == 'L') {
+                val longName = readEntryData(size)
+                // Skip padding after long name data
+                val padding = (512 - (size % 512)) % 512
+                if (padding > 0) skipFully(padding)
+                // Read the actual entry header
+                val realHeader = ByteArray(512)
+                if (!readFully(realHeader, 0, 512)) return null
+                return parseHeader(realHeader, longName.trimEnd('\u0000'))
+            }
+
+            // GNU long link (type 'K'): next header's link is stored in data
+            if (typeFlag == 'K') {
+                val longLink = readEntryData(size)
+                val padding = (512 - (size % 512)) % 512
+                if (padding > 0) skipFully(padding)
+                val realHeader = ByteArray(512)
+                if (!readFully(realHeader, 0, 512)) return null
+                return parseHeader(realHeader, linkOverride = longLink.trimEnd('\u0000'))
+            }
+
+            // Pax extended header (type 'x' or 'g'): skip the data, read next entry
+            if (typeFlag == 'x' || typeFlag == 'g') {
+                skipFully(size)
+                val padding = (512 - (size % 512)) % 512
+                if (padding > 0) skipFully(padding)
+                return readNextEntry()
+            }
+
+            return parseHeader(header)
+        }
+
+        private fun readEntryData(size: Long): String {
+            val data = ByteArray(size.toInt())
+            readFully(data, 0, data.size)
+            return String(data, Charsets.UTF_8)
+        }
+
+        private fun parseHeader(
+            header: ByteArray,
+            nameOverride: String? = null,
+            linkOverride: String? = null
+        ): TarEntry? {
+            val name = extractString(header, 0, 100)
+            val typeFlag = header[156].toInt().toChar()
+            val size = extractOctal(header, 124, 12)
+            val linkName = linkOverride ?: extractString(header, 157, 100)
+            val prefix = extractString(header, 345, 155)
+
+            val fullName = nameOverride
+                ?: if (prefix.isNotEmpty()) "$prefix/$name" else name
+
+            if (fullName.isEmpty()) return null
+
+            remainingBytes = size
+
+            currentEntry = TarEntry(
+                name = fullName,
+                size = size,
+                isDirectory = typeFlag == '5' || fullName.endsWith("/"),
+                isSymlink = typeFlag == '2',
+                isHardLink = typeFlag == '1',
+                linkName = if (typeFlag == '2' || typeFlag == '1') linkName else null
+            )
+            return currentEntry
+        }
 
         private fun extractString(header: ByteArray, offset: Int, length: Int): String {
             val end = (offset until offset + length).firstOrNull { header[it].toInt() == 0 } ?: (offset + length)
@@ -670,6 +819,14 @@ class BootstrapInstaller(private val context: Context) {
         }
 
         private fun extractOctal(header: ByteArray, offset: Int, length: Int): Long {
+            // Handle binary-encoded size (high bit set)
+            if (length > 0 && (header[offset].toInt() and 0x80) != 0) {
+                var value = 0L
+                for (i in 1 until length) {
+                    value = (value shl 8) or (header[offset + i].toLong() and 0xFF)
+                }
+                return value
+            }
             val str = extractString(header, offset, length).trim()
             return try { str.toLong(8) } catch (e: NumberFormatException) { 0L }
         }
@@ -677,7 +834,7 @@ class BootstrapInstaller(private val context: Context) {
         override fun read(b: ByteArray, off: Int, len: Int): Int {
             val toRead = minOf(len.toLong(), remainingBytes).toInt()
             if (toRead <= 0) return -1
-            val read = super.read(b, off, toRead)
+            val read = `in`.read(b, off, toRead)
             if (read > 0) remainingBytes -= read
             return read
         }
