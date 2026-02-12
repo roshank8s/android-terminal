@@ -391,69 +391,79 @@ class BootstrapInstaller(private val context: Context) {
 
     /**
      * Java-based tar.xz extraction as fallback.
+     * Decompresses XZ to a plain .tar first, then uses system tar to extract.
+     * This avoids fragile custom tar parsing (GNU long names, pax headers, etc).
      */
     private fun extractTarXzJava(archive: File, destDir: File, listener: ProgressListener): Boolean {
+        val tarFile = File(archive.parent, archive.nameWithoutExtension + ".tar")
         try {
+            // Step 1: Decompress .tar.xz -> .tar using Java XZ library
+            listener.onStatusMessage("Decompressing XZ archive...")
             val fis = FileInputStream(archive)
-            val xis = XZInputStream(fis)
-            val tis = TarInputStream(xis)
-
-            var entry = tis.nextEntry
-            var count = 0
-
-            while (entry != null) {
-                val outFile = File(destDir, entry.name)
-                count++
-
-                if (count % 100 == 0) {
-                    listener.onStatusMessage("Extracting: $count files...")
+            val xis = XZInputStream(fis, 65536)
+            val fos = FileOutputStream(tarFile)
+            val buffer = ByteArray(65536)
+            var bytesRead: Int
+            var totalBytes = 0L
+            while (xis.read(buffer).also { bytesRead = it } != -1) {
+                fos.write(buffer, 0, bytesRead)
+                totalBytes += bytesRead
+                if (totalBytes % (10 * 1024 * 1024) == 0L) {
+                    listener.onStatusMessage("Decompressed ${totalBytes / (1024 * 1024)} MB...")
                 }
+            }
+            fos.close()
+            xis.close()
+            fis.close()
+            listener.onStatusMessage("Decompressed to ${totalBytes / (1024 * 1024)} MB tar")
 
-                // Security: prevent path traversal
-                if (!outFile.canonicalPath.startsWith(destDir.canonicalPath)) {
-                    entry = tis.nextEntry
-                    continue
-                }
+            // Step 2: Extract the plain .tar using system tar
+            val tarCommands = listOf(
+                listOf("tar", "-xf", tarFile.absolutePath, "-C", destDir.absolutePath),
+                listOf("busybox", "tar", "-xf", tarFile.absolutePath, "-C", destDir.absolutePath)
+            )
 
-                if (entry.isDirectory) {
-                    outFile.mkdirs()
-                } else {
-                    outFile.parentFile?.mkdirs()
-                    val fos = FileOutputStream(outFile)
-                    val buffer = ByteArray(BUFFER_SIZE)
-                    var bytesRead: Int
-                    while (tis.read(buffer).also { bytesRead = it } != -1) {
-                        fos.write(buffer, 0, bytesRead)
+            for (cmd in tarCommands) {
+                try {
+                    listener.onStatusMessage("Extracting with: ${cmd.first()}")
+                    val process = ProcessBuilder(cmd)
+                        .directory(destDir)
+                        .redirectErrorStream(true)
+                        .start()
+
+                    val reader = BufferedReader(InputStreamReader(process.inputStream))
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        Log.d(TAG, "tar: $line")
                     }
-                    fos.close()
 
-                    // Set executable if in bin directory
-                    if (entry.name.contains("/bin/") ||
-                        entry.name.contains("/sbin/") ||
-                        entry.name.endsWith(".sh")) {
-                        outFile.setExecutable(true, false)
+                    val exitCode = process.waitFor()
+                    if (exitCode == 0) {
+                        val files = destDir.listFiles()
+                        if (files != null && files.isNotEmpty()) {
+                            // Handle single top-level directory
+                            if (files.size == 1 && files[0].isDirectory) {
+                                val innerDir = files[0]
+                                innerDir.listFiles()?.forEach { file ->
+                                    file.renameTo(File(destDir, file.name))
+                                }
+                                innerDir.delete()
+                            }
+                            tarFile.delete()
+                            return true
+                        }
                     }
+                    Log.w(TAG, "tar extraction failed with exit code $exitCode")
+                } catch (e: Exception) {
+                    Log.w(TAG, "tar command failed: ${cmd.joinToString(" ")}", e)
                 }
-
-                // Handle symlinks if possible
-                if (entry.isSymlink && entry.linkName != null) {
-                    try {
-                        val target = entry.linkName!!
-                        outFile.delete()
-                        Runtime.getRuntime().exec(arrayOf("ln", "-s", target, outFile.absolutePath)).waitFor()
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to create symlink: ${entry.name} -> ${entry.linkName}", e)
-                    }
-                }
-
-                entry = tis.nextEntry
             }
 
-            tis.close()
-            listener.onStatusMessage("Extracted $count files")
-            return count > 0
+            tarFile.delete()
+            return false
         } catch (e: Exception) {
             Log.e(TAG, "Java XZ extraction failed", e)
+            tarFile.delete()
             return false
         }
     }

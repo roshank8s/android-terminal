@@ -193,6 +193,10 @@ class DistroManager(private val context: Context) {
 
         if (!homeDir.exists()) homeDir.mkdirs()
 
+        // Ensure PRoot tmp dir exists (needed for PROOT_TMP_DIR)
+        val prootTmpDir = File(context.filesDir, "tmp")
+        if (!prootTmpDir.exists()) prootTmpDir.mkdirs()
+
         // Alpine uses /bin/sh (ash), others use /bin/bash
         val defaultShell = if (distro == Distro.ALPINE) "/bin/sh" else "/bin/bash"
         val actualCommand = command ?: "$defaultShell --login"
