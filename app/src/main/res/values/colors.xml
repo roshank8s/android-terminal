@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Terminal colors -->
+    <color name="terminal_bg">#1C1C1C</color>
+    <color name="terminal_fg">#DCDCCC</color>
+    <color name="cursor_color">#A0A0A0</color>
+
+    <!-- UI colors -->
+    <color name="toolbar_bg">#212121</color>
+    <color name="extra_keys_bg">#2D2D2D</color>
+    <color name="drawer_bg">#1E1E1E</color>
+    <color name="drawer_header_bg">#2D2D2D</color>
+
+    <!-- Text colors -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0B0B0</color>
+
+    <!-- Status colors -->
+    <color name="status_active">#4CAF50</color>
+    <color name="status_inactive">#757575</color>
+    <color name="status_finished">#F44336</color>
+
+    <!-- Theme colors -->
+    <color name="colorPrimary">#2196F3</color>
+    <color name="colorPrimaryDark">#1976D2</color>
+    <color name="colorAccent">#FF9800</color>
+    <color name="colorSurface">#1E1E1E</color>
+    <color name="colorOnSurface">#FFFFFF</color>
+    <color name="colorBackground">#121212</color>
+</resources>

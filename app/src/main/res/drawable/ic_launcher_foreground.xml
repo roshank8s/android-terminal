@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Terminal icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M74,73V41H34V73H74M74,31A4,4 0,0 1,78 35V73A4,4 0,0 1,74 77H34A4,4 0,0 1,30 73V35C30,32.79 31.8,31 34,31H74M59,69V65H68V69H59M47.16,61L39.14,53L42,50.18L50.84,59L42,67.82L39.14,65L47.16,61Z" />
+</vector>

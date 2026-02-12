@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_new_session"
+        android:title="@string/new_tab"
+        android:icon="@drawable/ic_add"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_toggle_keyboard"
+        android:title="@string/toggle_keyboard"
+        android:icon="@drawable/ic_keyboard"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_toggle_extra_keys"
+        android:title="@string/toggle_extra_keys"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_copy"
+        android:title="@string/copy"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_paste"
+        android:title="@string/paste"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_font_increase"
+        android:title="@string/font_size_increase"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_font_decrease"
+        android:title="@string/font_size_decrease"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_file_manager"
+        android:title="@string/file_manager"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_settings"
+        android:title="@string/settings"
+        app:showAsAction="never" />
+
+</menu>

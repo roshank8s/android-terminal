@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ui.MainActivity">
+
+    <!-- Main content -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- Toolbar -->
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/toolbar_bg"
+            android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar"
+            app:layout_constraintTop_toTopOf="parent"
+            app:popupTheme="@style/ThemeOverlay.MaterialComponents.Light" />
+
+        <!-- Terminal View -->
+        <com.roshank8s.androidterminal.terminal.TerminalView
+            android:id="@+id/terminal_view"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:background="@color/terminal_bg"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            app:layout_constraintTop_toBottomOf="@id/toolbar"
+            app:layout_constraintBottom_toTopOf="@id/extra_keys" />
+
+        <!-- Extra Keys Row -->
+        <com.roshank8s.androidterminal.ui.TerminalExtraKeys
+            android:id="@+id/extra_keys"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@color/extra_keys_bg"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <!-- Floating keyboard toggle button -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_keyboard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:src="@drawable/ic_keyboard"
+            android:contentDescription="@string/toggle_keyboard"
+            app:fabSize="mini"
+            app:layout_constraintBottom_toTopOf="@id/extra_keys"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Navigation Drawer -->
+    <LinearLayout
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="vertical"
+        android:background="@color/drawer_bg">
+
+        <!-- Drawer header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:background="@color/drawer_header_bg">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/sessions"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <!-- Session list -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/sessions_list"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Drawer actions -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_new_session"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/new_session"
+                android:textAllCaps="false"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                app:icon="@drawable/ic_add"
+                app:iconGravity="start" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_distro"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/linux_distro"
+                android:textAllCaps="false"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                app:icon="@drawable/ic_linux"
+                app:iconGravity="start" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_settings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings"
+                android:textAllCaps="false"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                app:icon="@drawable/ic_settings"
+                app:iconGravity="start" />
+        </LinearLayout>
+    </LinearLayout>
+
+</androidx.drawerlayout.widget.DrawerLayout>
