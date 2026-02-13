@@ -197,8 +197,10 @@ class DistroManager(private val context: Context) {
         val prootTmpDir = File(context.filesDir, "tmp")
         if (!prootTmpDir.exists()) prootTmpDir.mkdirs()
 
-        // Alpine uses /bin/sh (ash), others use /bin/bash
-        val defaultShell = if (distro == Distro.ALPINE) "/bin/sh" else "/bin/bash"
+        // Detect available shell inside the rootfs
+        val defaultShell = listOf("/bin/bash", "/bin/sh").firstOrNull {
+            File(rootfs, it.removePrefix("/")).exists()
+        } ?: "/bin/sh"
         val actualCommand = command ?: "$defaultShell --login"
 
         val cmd = mutableListOf<String>()
@@ -253,9 +255,9 @@ class DistroManager(private val context: Context) {
      * Build the setup script that configures a fresh distro installation.
      */
     fun getSetupScript(distro: Distro): String {
-        val shell = if (distro == Distro.ALPINE) "/bin/sh" else "/bin/bash"
         return buildString {
-            appendLine("#!$shell")
+            // Use /bin/sh which is guaranteed to exist in all rootfs images
+            appendLine("#!/bin/sh")
             appendLine("set -e")
             appendLine()
             appendLine("# Fix DNS resolution")

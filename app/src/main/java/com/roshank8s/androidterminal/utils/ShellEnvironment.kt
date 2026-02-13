@@ -152,7 +152,7 @@ class ShellEnvironment(private val context: Context) {
         env.add("LANG=C.UTF-8")
         env.add("LC_ALL=C.UTF-8")
         env.add("TMPDIR=/tmp")
-        env.add("SHELL=/bin/bash")
+        env.add("SHELL=/bin/sh")
         env.add("USER=root")
         env.add("LOGNAME=root")
 

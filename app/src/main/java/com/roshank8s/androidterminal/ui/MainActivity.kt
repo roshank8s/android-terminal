@@ -372,7 +372,11 @@ class MainActivity : AppCompatActivity(),
         scriptFile.writeText(setupScript)
         scriptFile.setExecutable(true)
 
-        val shell = if (distro == DistroManager.Distro.ALPINE) "/bin/sh" else "/bin/bash"
+        // Detect shell inside the rootfs (proot-distro minimal images may not have bash)
+        val rootfs = distroManager.getRootfsDir(distro)
+        val shell = listOf("/bin/bash", "/bin/sh").firstOrNull {
+            java.io.File(rootfs, it.removePrefix("/")).exists()
+        } ?: "/bin/sh"
         val cmd = distroManager.buildPRootCommand(distro, "$shell /tmp/setup.sh")
         val session = service.createDistroSession(cmd)
         switchToSession(session)
