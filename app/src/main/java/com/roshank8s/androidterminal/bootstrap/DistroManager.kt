@@ -236,18 +236,8 @@ class DistroManager(private val context: Context) {
         // Set working directory
         cmd.addAll(listOf("-w", "/root"))
 
-        // Set the command to run
-        cmd.addAll(listOf("/usr/bin/env", "-i"))
-        cmd.addAll(listOf(
-            "HOME=/root",
-            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-            "TERM=xterm-256color",
-            "LANG=C.UTF-8",
-            "TMPDIR=/tmp",
-            "SHELL=$defaultShell",
-            "USER=root",
-            "LOGNAME=root"
-        ))
+        // Launch the shell directly (don't use /usr/bin/env which may not exist
+        // in minimal rootfs images from proot-distro)
         cmd.addAll(actualCommand.split(" "))
 
         return cmd

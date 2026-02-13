@@ -133,13 +133,28 @@ class ShellEnvironment(private val context: Context) {
 
     /**
      * Build environment for PRoot distro sessions.
+     * These env vars are set on the PRoot process itself, and PRoot
+     * passes them through into the chroot (except PROOT_* vars which
+     * PRoot consumes).
      */
     fun buildPRootEnvironment(): Array<String> {
-        val env = buildEnvironment().toMutableList()
+        val env = mutableListOf<String>()
 
-        // PRoot-specific
-        env.add("PROOT_NO_SECCOMP=1")  // Required for some Android versions
+        // PRoot host-side vars (consumed by PRoot binary, not passed to guest)
+        env.add("PROOT_NO_SECCOMP=1")
         env.add("PROOT_TMP_DIR=${tmpDir.absolutePath}")
+
+        // Guest environment (PRoot passes these into the chroot)
+        env.add("HOME=/root")
+        env.add("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+        env.add("TERM=xterm-256color")
+        env.add("COLORTERM=truecolor")
+        env.add("LANG=C.UTF-8")
+        env.add("LC_ALL=C.UTF-8")
+        env.add("TMPDIR=/tmp")
+        env.add("SHELL=/bin/bash")
+        env.add("USER=root")
+        env.add("LOGNAME=root")
 
         return env.toTypedArray()
     }
